@@ -1,0 +1,46 @@
+{
+  "name": "koishi-adapter-telegram",
+  "description": "Telegram adapter for Koishi",
+  "version": "1.0.0",
+  "main": "dist/index.js",
+  "typings": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "author": "undefined <masnn0@outlook.com>",
+  "license": "MIT",
+  "scripts": {
+    "lint": "eslint src --ext .ts",
+    "precommit": "yarn lint",
+    "prepack": "tsc -b"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/koishijs/koishi.git"
+  },
+  "bugs": {
+    "url": "https://github.com/koishijs/koishi/issues"
+  },
+  "homepage": "https://github.com/koishijs/koishi/tree/master/packages/koishi-core#readme",
+  "keywords": [
+    "bot",
+    "telegram",
+    "chatbot",
+    "koishi"
+  ],
+  "peerDependencies": {
+    "koishi-core": "^2.3.0"
+  },
+  "devDependencies": {
+    "@types/ms": "^0.7.31",
+    "@types/ws": "^7.2.6",
+    "get-port": "^5.1.1",
+    "koishi-test-utils": "^5.0.1"
+  },
+  "dependencies": {
+    "axios": "^0.20.0",
+    "ms": "^2.1.2",
+    "ws": "^7.3.1",
+    "koishi-utils": "^3.1.5"
+  }
+}
