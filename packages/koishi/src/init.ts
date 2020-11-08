@@ -207,13 +207,20 @@ async function updateMeta(config: AppConfig) {
   const meta: Package = JSON.parse(await fs.readFile(path, 'utf8'))
   let modified = false
   if (!meta.dependencies) meta.dependencies = {}
-  for (const [name] of config.plugins as string[]) {
-    const fullname = 'koishi-plugin-' + name
-    if (!meta.dependencies[fullname]) {
+
+  function checkDependency(name: string) {
+    if (!meta.dependencies[name]) {
       modified = true
-      meta.dependencies[fullname] = '^' + ecosystem[fullname].version
+      meta.dependencies[name] = '^' + ecosystem[name].version
     }
   }
+
+  const [name] = config.type.split(':', 1)
+  checkDependency('koishi-adapter-' + name)
+  for (const [name] of config.plugins as string[]) {
+    checkDependency('koishi-plugin-' + name)
+  }
+
   if (!modified) return
   await fs.writeFile(path, JSON.stringify(meta, null, 2))
   console.log(`${success} package.json was updated, type "npm install" to install new dependencies`)
@@ -267,11 +274,11 @@ async function writeConfig(config: any, path: string, type: SourceType) {
 export default function (cli: CAC) {
   cli.command('init [file]', 'initialize a koishi configuration file')
     .option('-f, --forced', 'overwrite config file if it exists')
-    .action(async (file = 'koishi.config.js', options) => {
+    .action(async (file = 'koishi.config.js', options?) => {
       // resolve file path
       const path = resolve(workingDirectory, file)
       if (!options.forced && existsSync(path)) {
-        console.warn(`${error} ${options.output} already exists. If you want to overwrite the current file, use ${yellow('koishi init -f')}`)
+        console.warn(`${error} configuration file already exists. If you want to overwrite the current file, use ${yellow('koishi init -f')}`)
         process.exit(1)
       }
 

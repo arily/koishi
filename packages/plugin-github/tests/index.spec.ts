@@ -10,6 +10,7 @@ import * as github from 'koishi-plugin-github'
 
 const app = new App({
   port: 10000,
+  prefix: '.',
   mockDatabase: true,
 })
 
@@ -112,13 +113,13 @@ describe('GitHub Plugin', () => {
 
   describe('Quick Interactions', () => {
     it('no operation', async () => {
-      await session1.shouldNotReply(`[CQ:reply,id=${idMap['issue_comment.created.1']}]`)
-      await session1.shouldNotReply(`[CQ:reply,id=${idMap['issue_comment.created.1']}] .noop`)
+      await session1.shouldNotReply(`[CQ:reply,id=${idMap['issue_comment.created.1']}] [CQ:at,qq=${BASE_SELF_ID}]`)
+      await session1.shouldNotReply(`[CQ:reply,id=${idMap['issue_comment.created.1']}] [CQ:at,qq=${BASE_SELF_ID}] .noop`)
     })
 
     it('link', async () => {
       await session1.shouldReply(
-        `[CQ:reply,id=${idMap['issue_comment.created.1']}] .link`,
+        `[CQ:reply,id=${idMap['issue_comment.created.1']}] [CQ:at,qq=${BASE_SELF_ID}] .link`,
         'https://github.com/koishijs/koishi/issues/19#issuecomment-576277946',
       )
     })
@@ -134,19 +135,51 @@ describe('GitHub Plugin', () => {
 
     it('react', async () => {
       const reaction = mockResponse('/repos/koishijs/koishi/issues/comments/576277946/reactions', [200])
-      await session1.shouldNotReply(`[CQ:reply,id=${idMap['issue_comment.created.1']}] laugh`)
+      await session1.shouldNotReply(`[CQ:reply,id=${idMap['issue_comment.created.1']}] [CQ:at,qq=${BASE_SELF_ID}] laugh`)
       expect(reaction.mock.calls).to.have.length(1)
     })
 
     it('reply', async () => {
       const comment = mockResponse('/repos/koishijs/koishi/issues/19/comments', [200])
-      await session1.shouldNotReply(`[CQ:reply,id=${idMap['issue_comment.created.1']}] test`)
+      await session1.shouldNotReply(`[CQ:reply,id=${idMap['issue_comment.created.1']}] [CQ:at,qq=${BASE_SELF_ID}] test`)
       expect(comment.mock.calls).to.have.length(1)
+    })
+
+    it('close', async () => {
+      const api1 = mockResponse('/repos/koishijs/koishi/issues/20', [200])
+      const api2 = mockResponse('/repos/koishijs/koishi/issues/20/comments', [200])
+      await session1.shouldNotReply(`[CQ:reply,id=${idMap['pull_request.opened.1']}] [CQ:at,qq=${BASE_SELF_ID}] .close foo`)
+      expect(api1.mock.calls).to.have.length(1)
+      expect(api2.mock.calls).to.have.length(1)
+    })
+
+    it('base', async () => {
+      const api = mockResponse('/repos/koishijs/koishi/pulls/20', [200])
+      await session1.shouldNotReply(`[CQ:reply,id=${idMap['pull_request.opened.1']}] [CQ:at,qq=${BASE_SELF_ID}] .base foo`)
+      expect(api.mock.calls).to.have.length(1)
+    })
+
+    it('merge', async () => {
+      const api = mockResponse('/repos/koishijs/koishi/pulls/20/merge', [200])
+      await session1.shouldNotReply(`[CQ:reply,id=${idMap['pull_request.opened.1']}] [CQ:at,qq=${BASE_SELF_ID}] .merge`)
+      expect(api.mock.calls).to.have.length(1)
+    })
+
+    it('rebase', async () => {
+      const api = mockResponse('/repos/koishijs/koishi/pulls/20/merge', [200])
+      await session1.shouldNotReply(`[CQ:reply,id=${idMap['pull_request.opened.1']}] [CQ:at,qq=${BASE_SELF_ID}] .rebase`)
+      expect(api.mock.calls).to.have.length(1)
+    })
+
+    it('squash', async () => {
+      const api = mockResponse('/repos/koishijs/koishi/pulls/20/merge', [200])
+      await session1.shouldNotReply(`[CQ:reply,id=${idMap['pull_request.opened.1']}] [CQ:at,qq=${BASE_SELF_ID}] .squash`)
+      expect(api.mock.calls).to.have.length(1)
     })
 
     it('token not found', async () => {
       await session2.shouldReply(
-        `[CQ:reply,id=${idMap['issue_comment.created.1']}] test`,
+        `[CQ:reply,id=${idMap['issue_comment.created.1']}] [CQ:at,qq=${BASE_SELF_ID}] test`,
         '要使用此功能，请对机器人进行授权。输入你的 GitHub 用户名。',
       )
       await session2.shouldReply('satori', /^请点击下面的链接继续操作：/)
@@ -154,14 +187,14 @@ describe('GitHub Plugin', () => {
 
     it('request error', async () => {
       apiScope.post('/repos/koishijs/koishi/issues/19/comments').replyWithError('foo')
-      await session1.shouldReply(`[CQ:reply,id=${idMap['issue_comment.created.1']}] test`, '发送失败。')
+      await session1.shouldReply(`[CQ:reply,id=${idMap['issue_comment.created.1']}] [CQ:at,qq=${BASE_SELF_ID}] test`, '发送失败。')
     })
 
     it('refresh token', async () => {
       const unauthorized = mockResponse('/repos/koishijs/koishi/issues/19/comments', [401])
       tokenInterceptor.reply(401)
       await session1.shouldReply(
-        `[CQ:reply,id=${idMap['issue_comment.created.1']}] test`,
+        `[CQ:reply,id=${idMap['issue_comment.created.1']}] [CQ:at,qq=${BASE_SELF_ID}] test`,
         '令牌已失效，需要重新授权。输入你的 GitHub 用户名。',
       )
       expect(unauthorized.mock.calls).to.have.length(1)
@@ -172,7 +205,7 @@ describe('GitHub Plugin', () => {
       const unauthorized = mockResponse('/repos/koishijs/koishi/issues/19/comments', [401])
       tokenInterceptor.reply(200, payload)
       const notFound = mockResponse('/repos/koishijs/koishi/issues/19/comments', [404])
-      await session1.shouldReply(`[CQ:reply,id=${idMap['issue_comment.created.1']}] test`, '发送失败。')
+      await session1.shouldReply(`[CQ:reply,id=${idMap['issue_comment.created.1']}] [CQ:at,qq=${BASE_SELF_ID}] test`, '发送失败。')
       expect(unauthorized.mock.calls).to.have.length(1)
       expect(notFound.mock.calls).to.have.length(1)
     })
