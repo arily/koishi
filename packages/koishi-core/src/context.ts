@@ -1,7 +1,7 @@
 import { intersection, difference, Logger, defineProperty } from 'koishi-utils'
 import { Command, CommandConfig, ParsedArgv, ExecuteArgv } from './command'
 import { PostType, Session } from './session'
-import { User, Group } from './database'
+import { User, Group, Database } from './database'
 import { App } from './app'
 
 export type NextFunction = (next?: NextFunction) => Promise<void>
@@ -19,6 +19,14 @@ interface Scope {
   groups: ScopeSet
   users: ScopeSet
   private: boolean
+}
+
+interface snapshot {
+  scope: Scope,
+  hooks: Object,
+  disposables: Array<any>,
+  database: Database,
+  router: any
 }
 
 function joinScope(base: ScopeSet, ids: number[]) {
@@ -63,6 +71,47 @@ export class Context {
 
   logger(name: string) {
     return new Logger(name)
+  }
+
+  get snapshot() {
+    const hooks = Object.entries(this.app._hooks).reduce((acc, [name, hooks]) => {
+      acc[name] = hooks.map(([, hook]) => hook)
+      return acc
+    }, {})
+    // https://github.com/Microsoft/TypeScript/issues/24587#issuecomment-460650063
+
+    // Object.getOwnPropertySymbols(this.app._hooks).map(s => {
+    //   console.log(s)
+    //   const sym: string = s as unknown as string
+    //   const hooks = this.app._hooks[sym]
+    //   hooks[sym] = hooks.map(([, hook]) => hook)
+    // })
+    const sym: string = Context.MIDDLEWARE_EVENT as unknown as string
+    const middlewares = this.app._hooks[sym]
+    const middlewareStat = middlewares.map(([, hook]) => hook)
+    hooks[sym] = middlewareStat
+    return {
+      scope: this.scope,
+      hooks,
+      disposables: this._disposables,
+      database: this.database,
+      router: this.router,
+    }
+  }
+
+  restore(snapshot: snapshot) {
+    const listeners = snapshot.hooks
+    // this._disposables = snapshot.disposables
+    this.database = snapshot.database,
+    // this.router = snapshot.database
+    Object.entries(listeners).map(([name, hooks]) => {
+      hooks.map(hook => {
+        this.addListener(name, hook)
+      })
+    })
+    listeners[App.MIDDLEWARE_EVENT].map(hook => {
+      this.addListener(App.MIDDLEWARE_EVENT, hook)
+    })
   }
 
   get bots() {
@@ -176,6 +225,7 @@ export class Context {
     return this.addListener(name, listener)
   }
 
+  addListener(name: any, listener: CallableFunction)
   addListener<K extends keyof EventMap>(name: K, listener: EventMap[K]) {
     this.getHooks(name).push([this, listener])
     const dispose = () => this.removeListener(name, listener)
